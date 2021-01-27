@@ -186,6 +186,14 @@ df_qtr %>%
     full_join(shp_tza, by = c("snu1uid" = "uid"))
   
   df_map <- df_map %>% 
+    mutate(
+      CENTROID = map(geometry, st_centroid),
+      COORDS = map(CENTROID, st_coordinates),
+      COORDS_X = map_dbl(COORDS, 1),
+      COORDS_Y = map_dbl(COORDS, 2)
+    )
+  
+  df_map <- df_map %>% 
     filter(!is.na(fiscal_year)) %>% 
     mutate(group = case_when(achievement < .75 ~ burnt_sienna,
                              achievement < .9 ~ golden_sand,
@@ -196,17 +204,19 @@ df_qtr %>%
            group_lab = factor(group_lab, c("<75%", "75-89%", "+90%")),
            snu_lab = case_when(achievement < .75 ~ snu1))
   
+  df_map <- df_map %>% 
+    filter(targets > 0)
   
   terr + 
     geom_sf(data = df_map, aes(geometry = geometry, fill = group_lab), alpha = .7) +
-    geom_sf_text(data = df_map, aes(geometry = geometry, label = snu_lab), size = 2,
-                 family = "Source Sans Pro", color = "#505050") +
+    geom_label_repel(data = df_map, aes(x = COORDS_X, y = COORDS_Y, label = snu_lab),
+                     fill = alpha(c("white"), 0.75), force = 6, 
+                     color = "#505050", size = 2,
+                     family = "Source Sans Pro", label.size = NA) +
     facet_grid(mod_type ~ fiscal_year, switch = "y") +
-    scale_fill_manual(values = c(burnt_sienna, golden_sand, genoa_light)#,
-                      # na.value = NULL
-                      ) +
+    scale_fill_manual(values = c(burnt_sienna, golden_sand, genoa_light)) +
     labs(x = NULL, y = NULL, fill = "FY20 Target Achievement",
-         title = "MANY REGIONS FEEL SHORT OF INDEX TESTING TARGETS IN FY20",
+         title = "MANY REGIONS FEEL SHORT OF POSITIVE INDEX TESTING TARGETS IN FY20",
          subtitle = "Tanzania | USAID",
          caption = "Source: FY20Q4c MSD") +
     si_style() +
