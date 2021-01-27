@@ -31,7 +31,7 @@ df_tza <- si_path() %>%
 
 shp_tza <- read_sf("GIS/Tanzania_PROD_4_Region_RegionLsib_2019_May.shp")
 
-terr <- terrain_map("United Republic of Tanzania", terr_path = si_path("path_raster"))
+terr <- terrain_map("United Republic of Tanzania", terr_path = si_path("path_raster"), mask = TRUE)
 
 
 
@@ -196,26 +196,26 @@ df_qtr %>%
            group_lab = factor(group_lab, c("<75%", "75-89%", "+90%")),
            snu_lab = case_when(achievement < .75 ~ snu1))
   
-  df_map %>% 
-    ggplot() +
-    geom_sf(data = shp_tza, fill = "gray80") +
-    geom_sf(aes(geometry = geometry, fill = group_lab)) +
-    geom_sf_text(aes(geometry = geometry, label = snu_lab), size = 3,
+  
+  terr + 
+    geom_sf(data = df_map, aes(geometry = geometry, fill = group_lab), alpha = .7) +
+    geom_sf_text(data = df_map, aes(geometry = geometry, label = snu_lab), size = 2,
                  family = "Source Sans Pro", color = "#505050") +
     facet_grid(mod_type ~ fiscal_year, switch = "y") +
-    scale_fill_manual(values = c(burnt_sienna, golden_sand, genoa_light),
-                      na.value = "gray80") +
-    labs(title = "MANY REGIONS FEEL SHORT OF INDEX TESTING TARGETS IN FY20",
-         subtitle = "Tanzania | USAID | FY Target Achievement",
+    scale_fill_manual(values = c(burnt_sienna, golden_sand, genoa_light)#,
+                      # na.value = NULL
+                      ) +
+    labs(x = NULL, y = NULL, fill = "FY20 Target Achievement",
+         title = "MANY REGIONS FEEL SHORT OF INDEX TESTING TARGETS IN FY20",
+         subtitle = "Tanzania | USAID",
          caption = "Source: FY20Q4c MSD") +
-    si_style_map() +
+    si_style() +
     theme(strip.text.x = element_text(face = "bold"),
-          strip.text.y = element_text(face = "bold"),
-          # legend.justification = "left",
-          # legend.position = "top",
-          plot.title = element_text(vjust = 1),
-          plot.subtitle = element_text(vjust = 1),
-          plot.caption = element_text(vjust = -1))
+          strip.text.y = element_text(face = "bold", vjust = 0, hjust = 0),
+          axis.text.x = element_blank(),
+          axis.text.y = element_blank(),
+          panel.grid = element_blank()
+    )
   
   si_save("COP21_TZA_Index-regional-map.png", path = "Images")
   
