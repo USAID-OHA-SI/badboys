@@ -30,7 +30,6 @@
     read_rds() %>% 
     filter(operatingunit == "Tanzania")
   
-  
   df_kp <- read_excel(file,
                     sheet = "Sheet1") %>% 
     select(-starts_with("..."))
@@ -56,6 +55,8 @@
     select(Sex = sex, Age = ageasentered, share) %>% 
     mutate(SNU1 = "NATIONAL", 
            PSNU = "NATIONAL")
+  
+  write_csv(df_disto, "Dataout/1_Nat_distro.csv", na = "")
     
   #reshape the KP targes long and assign sex
   df_kp <- df_kp %>% 
@@ -86,7 +87,7 @@
                  names_to = "indicator",
                  values_drop_na = TRUE)
   
-  #
+  #bind the age/sex groups onto the psnus and ensure all grouping exist 
   df_full <- df_kp %>%
     select(SNU1, PSNU, indicator) %>% 
     bind_rows(df_disto) %>% 
@@ -97,35 +98,75 @@
            !is.na(Age),
            !is.na(SNU1),
            !is.na(PSNU),
-           PSNU != "NATIONAL"
-           )
+           PSNU != "NATIONAL")
   
+  #remove placeholder PNSU for 1st merge to apply to all PSNUs
   df_distro_lim <- df_disto %>% 
     select(-c(SNU1, PSNU))
   
+  #join the complete df with the natl distro and then kp total values
   df_full <- df_full %>% 
-    left_join(df_distro_lim)
-  
-  df_full <- df_full %>% 
+    left_join(df_distro_lim) %>% 
     left_join(df_kp)
   
+  #create the new KP total for each age/sex band
   df_full <- df_full %>% 
     mutate(kp_spread = round(value * share))
   
+  write_csv(df_full, "Data/2_complete_psnu-age-sex.csv", na = "")
+  
+  #aggregate up, removing the KP group
   df_agg <- df_full %>% 
     group_by(SNU1, PSNU, Age, Sex, indicator) %>% 
     summarise(kp_spread = sum(kp_spread, na.rm =T)) %>% 
     ungroup()
   
+  #append original age and the new distrubuted KP age/sex totals
   df_complete <- bind_rows(df_age, df_agg) %>% 
     group_by(SNU1, PSNU, Age, Sex, indicator) %>% 
     summarise(across(c(value, kp_spread), sum, na.rm =T)) %>% 
     ungroup()
   
-  df_complete <- df_complete %>% 
-    mutate(new_total = value + kp_spread)
+  #create at new value to use in DP
+  df_complete <- df_complete %>%
+    rename(orig_agesex_value = value) %>% 
+    mutate(new_total = orig_agesex_value + kp_spread)
   
-  df_complete %>% 
-    filter(PSNU == "Arusha CC [#SNU] [kUikmXEZjNy]",
-           Age == "15-19",
-           Sex == "Female")
+  #clean for export
+  df_export <- df_complete %>% 
+    select(SNU1:indicator, new_total) %>% 
+    filter(new_total>0) %>% 
+    pivot_wider(names_from = indicator, values_from = new_total)
+  
+  write_csv(df_export, "Data/4_final.csv", na = "")
+
+# CHECK -------------------------------------------------------------------
+
+  
+  df_export_check <- df_export %>% 
+    group_by(PSNU) %>% 
+    summarise(across(where(is.double), sum, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    pivot_longer(-PSNU, names_to = "indicator") %>% 
+    rename(final_total = value)
+  
+  
+  df_age_check <- df_age %>% 
+    group_by(indicator, PSNU) %>% 
+    summarise(orig_val = sum(value, na.rm = TRUE)) %>% 
+    ungroup() 
+  
+  df_kp_check <- df_kp %>% 
+    group_by(indicator, PSNU) %>% 
+    summarise(kp_val = sum(value, na.rm = TRUE)) %>% 
+    ungroup() 
+
+  df_final_check <- df_kp_check %>% 
+    tidylog::left_join(df_age_check) %>% 
+    mutate(across(c(kp_val, orig_val), ~ ifelse(is.na(.), 0, .)),
+           total = kp_val + orig_val) %>% 
+    tidylog::left_join(df_export_check) %>% 
+    mutate(delta = final_total/total)
+  
+  write_csv(df_final_check, "Data/3_check.csv", na = "")
+  
