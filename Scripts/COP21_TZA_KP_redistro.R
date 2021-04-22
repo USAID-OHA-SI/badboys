@@ -113,7 +113,7 @@
   df_full <- df_full %>% 
     mutate(kp_spread = round(value * share))
   
-  write_csv(df_full, "Data/2_complete_psnu-age-sex.csv", na = "")
+  write_csv(df_full, "Dataout/2_complete_psnu-age-sex.csv", na = "")
   
   #aggregate up, removing the KP group
   df_agg <- df_full %>% 
@@ -138,7 +138,7 @@
     filter(new_total>0) %>% 
     pivot_wider(names_from = indicator, values_from = new_total)
   
-  write_csv(df_export, "Data/4_final.csv", na = "")
+  write_csv(df_export, "Dataout/4_final.csv", na = "")
 
 # CHECK -------------------------------------------------------------------
 
@@ -168,5 +168,5 @@
     tidylog::left_join(df_export_check) %>% 
     mutate(delta = final_total/total)
   
-  write_csv(df_final_check, "Data/3_check.csv", na = "")
+  write_csv(df_final_check, "Dataout/3_check.csv", na = "")
   
