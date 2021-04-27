@@ -164,31 +164,12 @@
       si_style_ygrid()
     
   
-    df_art %>% 
-      filter(indicator == "TB_ART") %>% 
-      mutate(max_val = ifelse(period == max(period), D, 0)) %>% 
-      arrange(snu1, period) %>%
-      group_by(snu1) %>% 
-      mutate(decline = case_when(period == max(period) ~ coverage < lag(coverage, n = 1, order_by = period)),
-             ln_clr = ifelse(max(decline, na.rm = TRUE) == 1, burnt_sienna, scooter)) %>%
-      ungroup() %>% 
-      ggplot(aes(period, coverage, group = snu1, color = ln_clr)) +
-      geom_hline(yintercept = .9, linetype = "dashed", color = trolley_grey) +
-      geom_path() +
-      geom_point() +
-      facet_wrap(~fct_reorder(snu1, max_val, max, .desc = TRUE)) +
-      scale_y_continuous(label = percent_format(1)) +
-      scale_x_discrete(breaks = c("FY20Q1", "FY20Q3", "FY21Q1")) +
-      scale_color_identity() +
-      labs(x = NULL, y = NULL,
-           title = "TB ART COVERAGE MORE VARIABLE THAN TB STAT COVERAGE",
-           subtitle = "Trends in TB Coverage (TB_ART/TB_ART_D)",
-           caption = glue("Note: FY21Q2 data are preliminary!
-                        {default_source}")) +
-      si_style_ygrid() +
-      theme(panel.spacing = unit(.5, "lines"))
-    
-    si_save("Images/FY21Q2Prelim_TZA_TBART-Coverage.png")
-    
 
-  
+# CERVICAL CANCER ---------------------------------------------------------
+
+  df_genie %>% 
+      filter(indicator == "CXCA_SCRN",
+             standardizeddisaggregate == "Age/Sex/HIVStatus/ScreenResult/ScreenVisitType",
+             fiscal_year == 2021) %>% 
+      count(standardizeddisaggregate, wt = cumulative)
+    
