@@ -1,3 +1,13 @@
+# PROJECT:  badboys
+# AUTHOR:   A.Chafetz | USAID
+# PURPOSE:  Adjustments for OVC_SERVER PACT targets
+# LICENSE:  MIT
+# DATE:     2021-05-17
+# UPDATED: 
+
+
+# DEPENDENCIES ------------------------------------------------------------
+
 library(tidyverse)
 library(glitr)
 library(glamr)
@@ -16,12 +26,11 @@ library(readxl)
 # GLOBALS -----------------------------------------------------------------
 
   path <- "C:/Users/achafetz/Downloads/PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc.xlsx"
-  
-  mech_epic <- "81965"
+
   mech_pact <- "17358"
   
-  d_trgt <- 676026
-  d_trgt_dreams <- 61607
+  d_trgt <- 
+  d_trgt_dreams <- 
 
 # IMPORT ------------------------------------------------------------------
 
