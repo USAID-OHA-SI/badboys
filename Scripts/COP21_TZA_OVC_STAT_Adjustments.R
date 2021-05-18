@@ -118,10 +118,6 @@ library(readxl)
   
   
   
-  
-  
-  
-  
 # DREAMS ALLOCATION -------------------------------------------------------
 
   path <- "C:/Users/achafetz/Downloads/PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc_out.xlsx"
@@ -189,6 +185,7 @@ library(readxl)
     bind_rows(df_new_pact, df_new_pact_dreams) %>% 
     arrange(row)
   
+  write_csv(df_psnuxim_ovc_adj, "Dataout/COP21_TZA_OVCSTAT_new_targets.csv", na = "")
   
   df_psnuxim_ovc_adj <- df_psnuxim_ovc_adj %>% 
     bind_rows(df_psnuxim_ovc_adj %>%
@@ -223,14 +220,51 @@ library(readxl)
     summarise(across(starts_with("new_ovc"), sum, na.rm = TRUE))
   
   
+
+# DREAMS IM REALLOCATION --------------------------------------------------
+
+  path <- "C:/Users/achafetz/Downloads/PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc_out2.xlsx"
   
+  #PSNUxIM tab
+  df_psnuxim <- tameDP::import_dp(path)
+  df_psnuxim <- tame_dp(path, map_names = TRUE)  
       
+  psnus_pact <- df_psnuxim %>% 
+    filter(str_detect(indicator_code, "OVC_SERV"),
+           !is.na(`17358_dsd_value`),
+           str_detect(psnu, "DREAMS")) %>% 
+    distinct(psnu) %>% 
+    pull()
+  
+    
+  df_psnuxim %>% 
+    filter(str_detect(indicator_code, "OVC_SERV"),
+           age == "10-14",
+           sex == "Female",
+           psnu %in% psnus_pact)
+    
+    
+    
+    
+    
+  df_psnuxim_ovc %>% 
+    filter(mech_code != "00000",
+           psnuuid %in% psnus_pact,
+           psnuuid %in% ovc_dreams,
+           age == "10-14",
+           sex == "Female") %>% 
+    count(primepartner, otherdisaggregate, wt= targets) %>% 
+    spread(otherdisaggregate, n)
   
   df_psnuxim_ovc %>% 
     filter(mech_code != "00000",
-           age == "10-14") %>% 
-    count(primepartner, otherdisaggregate, wt= targets) %>% 
-    spread(otherdisaggregate, n)
+           psnuuid %in% psnus_pact,
+           psnuuid %in% ovc_dreams,
+           age == "10-14",
+           sex == "Female") %>% 
+    count(psnuuid, mech_code, primepartner, otherdisaggregate, wt= targets) %>% 
+    spread(otherdisaggregate, n) %>%
+    write_csv("Dataout/COP21_TZA_OVCSTAT_adj_IMs.csv", na = "")
   
   df_psnuxim_adj <- df_psnuxim_ovc %>%
     mutate(dreams = psnuuid %in% ovc_dreams) %>% 
