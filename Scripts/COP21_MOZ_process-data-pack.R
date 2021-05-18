@@ -37,7 +37,7 @@
   
   write_csv(df_dp, path_out, na = "")
   
-  zip(path_zip, path_out)
+  zip(path_zip, path_out, extras = '-j')
   
   unlink(path_out)
   
