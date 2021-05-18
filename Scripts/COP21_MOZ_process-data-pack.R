@@ -31,7 +31,7 @@
 # TIDY DATA PACK ----------------------------------------------------------
   
   
-  df_dp <- tame_dp(path_in, FALSE)
+  df_dp <- tame_dp(path_in, map_names = FALSE)
   
   df_dp <- get_names(df_dp)
   
