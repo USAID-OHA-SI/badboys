@@ -23,7 +23,6 @@
 
 # GLOBAL VARIABLES --------------------------------------------------------
 
-dodge <- position_dodge(width=.5)
 
 # IMPORT & STORE DP -------------------------------------------------------
 
@@ -139,8 +138,16 @@ dodge <- position_dodge(width=.5)
   si_save("Images/OVC_SERV-Targets.png")
   
   
-#SHIFT BY STATUS BETWEEN COP20-21   
+#SHIFT BY STATUS BETWEEN COP20-21 
+  
+  df_ovc_disagg_total <- df_ovc %>% 
+    mutate(otherdisaggregate = "Total") %>%
+    group_by(fiscal_year, snu1, fundingagency, otherdisaggregate) %>% 
+    summarise(across(c(ovc_serv, tx_curr), sum, na.rm = TRUE)) %>%
+    ungroup()
+    
   df_ovc_disagg <- df_ovc %>% 
+    bind_rows(df_ovc_disagg_total) %>% 
     clean_agency() %>% 
     filter(ovc_serv > 0) %>%
     group_by(snu1) %>% 
@@ -175,7 +182,7 @@ dodge <- position_dodge(width=.5)
          title = "GROWTH IN OVC FOR DREAM + PREVENTION DOES NOT OFFSET DECLINE IN OVC ACTIVE",
          caption = "Source: FY21Q1c MSD + 
          Data Pack (PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc_out2.xlsx)") +
-    facet_grid(~fct_reorder(otherdisaggregate, ovc_serv, sum, na.rm = TRUE, .desc = TRUE)) +
+    facet_grid(~fct_reorder(otherdisaggregate, ovc_serv, sum, na.rm = TRUE, .desc = TRUE), scales = "free_x") +
     si_style_xgrid()
     
   si_save("Images/OVC_SERV-Targets-Disaggs.png")
