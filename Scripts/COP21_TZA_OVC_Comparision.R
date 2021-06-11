@@ -3,7 +3,7 @@
 # PURPOSE:  OVC Trends
 # LICENSE:  MIT
 # DATE:     2021-05-19
-# UPDATED: 
+# UPDATED:  2021-05-21
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -26,7 +26,7 @@
 
 # IMPORT & STORE DP -------------------------------------------------------
 
-  # dp_tza <-  "../../../Downloads/PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc_out2.xlsx"
+  dp_tza <-  "../../../Downloads/PEPFAR Tanzania - DP -05162021-clean-1330 (1)_ahc_out2.xlsx"
   # df_dp <- tame_dp(dp_tza, FALSE)
   # df_dp <- get_names(df_dp)
   # write_csv(df_dp, "Dataout/COP21_TZA_tameDP_20210519.csv", na = "")
@@ -37,10 +37,16 @@
                  col_types = c(fiscal_year = "i",
                                targets = "d",
                                .default = "c"))
+  
+  df_dp_plhiv <- import_plhiv(dp_tza)
+  
   df_msd <- si_path() %>% 
     return_latest("PSNU_IM") %>% 
     read_rds()   
   
+  df_subnat <- si_path() %>% 
+    return_latest("NAT_SUBNAT") %>% 
+    read_rds()
 
 # MUNGE -------------------------------------------------------------------
 
@@ -87,9 +93,23 @@
   df_ovc <- bind_rows(df_msd_ovc, df_dp_ovc)
   
 
-# VIZ ---------------------------------------------------------------------
+  df_dp_plhiv <- df_dp_plhiv %>%
+    filter(indicator == "PLHIV",
+           age %in% c("<01", "01-04", "05-09", "10-14", "15-19")) %>% 
+    mutate(indicator = "PLHIV_u20") %>% 
+    count(snu1, indicator, fiscal_year, wt = targets, name = "targets") 
+  
+  df_subnat <- df_subnat %>% 
+    filter(operatingunit == "Tanzania",
+           fiscal_year == 2021,
+           indicator == "PLHIV",
+           ageasentered %in% c("<01", "01-04", "05-09", "10-14", "15-19")) %>% 
+    mutate(indicator = "PLHIV_u20") %>% 
+    count(snu1, indicator, fiscal_year, wt = targets, name = "targets") 
+  
 
-#TOTAL SHIFT FROM COP20-21  
+# TOTAL SHIFT FROM COP20-21  ----------------------------------------------
+
   df_ovc_tot <- df_ovc %>% 
     group_by(fiscal_year, snu1, fundingagency) %>% 
     summarise(across(c(ovc_serv, tx_curr), sum, na.rm = TRUE)) %>% 
@@ -138,7 +158,8 @@
   si_save("Images/OVC_SERV-Targets.png")
   
   
-#SHIFT BY STATUS BETWEEN COP20-21 
+# SHIFT BY STATUS BETWEEN COP20-21  ---------------------------------------
+
   
   df_ovc_disagg_total <- df_ovc %>% 
     mutate(otherdisaggregate = "Total") %>%
@@ -186,4 +207,10 @@
     si_style_xgrid()
     
   si_save("Images/OVC_SERV-Targets-Disaggs.png")
+  
+  
+
+# PROPORTIONATE SHIFTS ----------------------------------------------------
+
+  
   

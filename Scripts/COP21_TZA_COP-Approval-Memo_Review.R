@@ -29,7 +29,7 @@
                "TX_NEW", "TX_CURR", "TX_PVLS_D", "TX_PVLS",
                "CXCA_SCRN", "OVC_SERV", "OVC_HIVSTAT", 
                "PMTCT_STAT", "PMTCT_STAT_POS", "PMTCT_ART",
-               "PMTCT_EID", "PP_PREV", "KP_MAT", "VMMC_CIRC",
+               "PMTCT_EID", "PP_PREV", "KP_PREV", "KP_MAT", "VMMC_CIRC",
                "HTS_SELF", "PrEP_NEW", "PrEP_CURR", "TB_STAT",
                "TB_ART", "TB_PREV", "TX_TB_D", "GEND_GBV", "AGWY_PREV")
   
@@ -40,7 +40,7 @@
     
 # IMPORT ------------------------------------------------------------------
   
-  df_dp <- vroom("Dataout/COP21_TZA_tameDP_20210519.csv",
+  df_dp <- vroom("Dataout/COP21_TZA_tameDP_20210521.csv",
                  col_types = c(fiscal_year = "i",
                                targets = "d",
                                .default = "c"))
@@ -73,6 +73,15 @@ df_dp <- df_dp %>%
 df_dp <- df_dp %>% 
   filter(mech_code != "00000") %>% 
   clean_indicator()
+
+df_dp <- df_dp %>% 
+  mutate(age_group = case_when(disagg == "Total" ~ "Total",
+                               disagg == "KeyPop" ~ NA_character_,
+                               indicator == "OVC_SERV" & age %in% c(peds_ages, "15-17") ~ "<18",
+                               age == "18+" ~ "18+",
+                               age %in% peds_ages ~ "<15",
+                               !age %in% peds_ages ~ "15+")) %>% 
+  filter(!is.na(age_group))
 
 
 # SUMMARIZE ---------------------------------------------------------------
@@ -114,7 +123,6 @@ df_dp %>%
 
 
 df_dp %>% 
-  mutate(indicator = ifelse(indicator %in% c("HTS_INDEX_COM", "HTS_INDEX_FAC"), "HTS_INDEX", indicator)) %>% 
   filter(indicator %in% tbl_ind) %>% 
   mutate(age_group = case_when(disagg == "Total" ~ "Total",
                                age %in% peds_ages ~ "<15",
@@ -132,33 +140,39 @@ df_dp %>%
 
 # TABLE COMPARISON --------------------------------------------------------
 
-
+df_im_tb <- df_dp %>% 
+  filter(indicator %in% tbl_ind,
+         fundingagency == "USAID") %>% 
+  count(primepartner, indicator, age_group, wt = targets) %>% 
+  pivot_wider(names_from = c(indicator, age_group),
+              names_sep = " ",
+              values_from = n) 
 #table 1
-df_dp %>% 
-  filter(indicator %in% ptnr_tbl1_ind,
-         disagg != "Total",
-         fundingagency == "USAID") %>% 
-  mutate(age_group = case_when(disagg == "Total" ~ "Total",
-                               age %in% peds_ages ~ "<15",
-                               !age %in% peds_ages ~ "15+")) %>% 
-  count(primepartner, indicator, age_group, wt = targets) %>% 
-  pivot_wider(names_from = c(indicator, age_group),
-              names_sep = " ",
-              values_from = n)
+df_im_tb %>% 
+  select(primepartner,
+         `HTS_INDEX <15`,
+         `HTS_INDEX 15+`,
+         `HTS_TST <15`,
+         `HTS_TST 15+`,
+         `HTS_TST_POS <15`,
+         `HTS_TST_POS 15+`,
+         `TX_NEW <15`,
+         `TX_NEW 15+`,
+         `TX_CURR <15`,
+         `TX_CURR 15+`
+)
 
-
-df_dp %>% 
-  filter(indicator %in% ptnr_tbl2_ind,
-         fundingagency == "USAID") %>% 
-  mutate(age_group = case_when(disagg == "Total" ~ "Total",
-                               indicator == "OVC_SERV" & age %in% c(peds_ages, "15-17") ~ "<18",
-                               age == "18+" ~ "18+",
-                               age %in% peds_ages ~ "<15",
-                               !age %in% peds_ages ~ "15+")) %>% 
-  count(primepartner, indicator, age_group, wt = targets) %>% 
-  pivot_wider(names_from = c(indicator, age_group),
-              names_sep = " ",
-              values_from = n)
+#table 2
+df_im_tb %>% 
+  select(primepartner, 
+         `TX_PVLS <15`,
+         `TX_PVLS 15+`,
+         `CXCA_SCRN Total`,
+         `OVC_SERV <18`,
+         `OVC_SERV 18+`,
+         `OVC_HIVSTAT Total`,
+         `PMTCT_STAT <15`,
+         `PMTCT_STAT 15+`)
 
 df_dp %>% 
   filter(fundingagency == "USAID",
@@ -170,28 +184,35 @@ df_dp %>%
                                !age %in% peds_ages ~ "15+")) %>% 
   count(primepartner, age_group, wt = targets)
 
-df_dp %>% 
-  filter(indicator %in% ptnr_tbl3_ind,
-         fundingagency == "USAID") %>% 
-  mutate(age_group = case_when(disagg == "Total" ~ "Total",
-                               age %in% peds_ages ~ "<15",
-                               !age %in% peds_ages ~ "15+")) %>% 
-  count(primepartner, indicator, age_group, wt = targets) %>% 
-  pivot_wider(names_from = c(indicator, age_group),
-              names_sep = " ",
-              values_from = n)
+#table 3
+df_im_tb %>% 
+  select(primepartner,
+         `PMTCT_ART <15`,
+         `PMTCT_ART 15+`,
+         `PMTCT_EID Total`,
+         `PP_PREV <15`,
+         `PP_PREV 15+`,
+         `KP_PREV Total`,
+         `KP_MAT`,
+         `VMMC_CIRC Total`,
+         `HTS_SELF <15`,
+         `HTS_SELF 15+`)
 
 
-df_dp %>% 
-  filter(indicator %in% ptnr_tbl4_ind,
-         fundingagency == "USAID") %>% 
-  mutate(age_group = case_when(disagg == "Total" ~ "Total",
-                               age %in% peds_ages ~ "<15",
-                               !age %in% peds_ages ~ "15+")) %>% 
-  count(primepartner, indicator, age_group, wt = targets) %>% 
-  pivot_wider(names_from = c(indicator, age_group),
-              names_sep = " ",
-              values_from = n)
+#table 4
+df_im_tb %>% 
+  select(primepartner,
+         `PrEP_NEW Total`,
+         `PrEP_CURR Total`,
+         `TB_STAT <15`,
+         `TB_STAT 15+`,
+         `TB_ART <15`,
+         `TB_ART 15+`,
+         `TB_PREV <15`,
+         `TB_PREV 15+`,
+         `TX_TB_D <15`,
+         `TX_TB_D 15+`,
+         `GEND_GBV Total`)
 
 
 
