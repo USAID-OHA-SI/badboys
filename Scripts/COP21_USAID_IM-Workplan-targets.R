@@ -3,7 +3,7 @@
 # PURPOSE:  COP21 Target for USAID workplans
 # LICENSE:  MIT
 # DATE:     2021-06-11
-# UPDATED: 
+# UPDATED:  2021-06-30
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -18,6 +18,7 @@
   library(ggtext)
   library(glue)
   library(fs)
+  library(googledrive)
 
 # GLOBAL VARIABLES --------------------------------------------------------
   
@@ -60,10 +61,10 @@
            fundingagency == "USAID") %>%
     clean_indicator() %>% 
     mutate(country = ifelse(operatingunit == countryname, operatingunit, glue("{operatingunit}-{countryname}"))) %>% 
-    group_by(country, mech_code, mech_name, primepartner, fiscal_year, indicator) %>% 
+    group_by(country, psnu, mech_code, mech_name, primepartner, fiscal_year, indicator) %>% 
     summarise(targets = sum(targets, na.rm = TRUE)) %>% 
     ungroup() %>% 
-    arrange(country, mech_code, indicator)
+    arrange(country, mech_code, indicator, psnu)
 
 # CREATE TARGET FILES -----------------------------------------------------
 
