@@ -3,7 +3,7 @@
 # PURPOSE:  investigate NN and TX_NEW in ZAF
 # LICENSE:  MIT
 # DATE:     2022-02-22
-# UPDATED: 
+# UPDATED:  2022-02-23
 
 # DEPENDENCIES ------------------------------------------------------------
 
@@ -150,3 +150,19 @@ library(readxl)
     geom_point(data = . %>% filter(str_detect(PSNU, "Sed")),
                color = old_rose, size = 5, alpha = .9)
   
+  
+  #how does the ratio of TX_NEW to TX_CURR compare across PSNUs?
+  df_tx %>% 
+    filter(TX_CURR.T != 0) %>% 
+    mutate(share = TX_NEW.T/TX_CURR.T,
+           PSNU = str_extract(PSNU, "(?<=[:alnum:]{2} ).*(?= \\[#S)") %>% str_remove_all(" (Municipality|District|Metropolitan)")) %>% 
+    ggplot(aes(share, fct_reorder(PSNU, share), size = TX_CURR.T)) +
+    geom_point(alpha = .7, na.rm = TRUE) +
+    geom_point(data = . %>% filter(str_detect(PSNU, "Sed")),
+               color = old_rose, alpha = .9) +
+    scale_size(label = label_number_si()) +
+    labs(x = NULL, y = NULL,
+         title = "",
+         subtitle = "TX_NEW share of TX_CURR") +
+    scale_x_continuous(label = percent_format(1)) +
+    si_style()
