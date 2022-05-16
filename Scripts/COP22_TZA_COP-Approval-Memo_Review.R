@@ -25,7 +25,12 @@
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
+  
+  #setup folders in this repo if they don't exist already
+  folder_setup()
 
+  folderpath_output <- "Dataout"
+    
   peds_ages <- c("<01","01-04", "05-09", "10-14", 
                "<15", "02 - 12 Months", "<=02 Months")
   
@@ -85,14 +90,14 @@
 
   #create a df for IP comparision
   df_dp_ip <- df_dp %>% 
-    filter(indicator %in% c("HTS_RECENT", "PMTCT_EID", ptnr_tbl5_ind, 
+    filter(indicator %in% c("HTS_RECENT", "PMTCT_EID", ptnr_ind_tbl5, 
                             "CXCA_SCRN", "OVC_HIVSTAT", "GEND_GBV"),
            age_group == "Total") %>% 
     bind_rows(df_dp %>% 
-                filter(!indicator %in% c("HTS_RECENT", "PMTCT_EID", ptnr_tbl5_ind, 
+                filter(!indicator %in% c("HTS_RECENT", "PMTCT_EID", ptnr_ind_tbl5, 
                                          "CXCA_SCRN", "OVC_HIVSTAT", "GEND_GBV"),
                        age_group != "Total")) %>% 
-    count(fundingagency, primepartner, mech_code, indicator, age_group, wt = targets) 
+    count(funding_agency, prime_partner_name, mech_code, indicator, age_group, wt = targets) 
 
 # TABLE COMPARISON --------------------------------------------------------
 
@@ -122,11 +127,11 @@
     filter(indicator %in% tbl_ind) %>% 
     mutate(indicator = factor(indicator, tbl_ind),
            age_group = factor(age_group, tbl_age_order)) %>% 
-    count(indicator, age_group, fundingagency, wt = targets) %>%
+    count(indicator, age_group, funding_agency, wt = targets) %>%
     group_by(indicator,age_group) %>% 
     mutate(total = sum(n)) %>% 
     ungroup() %>% 
-    pivot_wider(names_from = fundingagency,
+    pivot_wider(names_from = funding_agency,
                 values_from = n) %>% 
     relocate(total, .after = everything()) %>% 
     arrange(indicator, age_group)
@@ -142,11 +147,11 @@
       unite(ind_age, c(indicator, age_group), remove = FALSE) %>%
       mutate(indicator = factor(indicator, !!indicators),
              age_group = factor(age_group, tbl_age_order)) %>% 
-      arrange(indicator, age_group, fundingagency, primepartner) %>%
+      arrange(indicator, age_group, funding_agency, prime_partner_name) %>%
       select(-c(indicator, age_group)) %>% 
       pivot_wider(names_from = ind_age,
                   values_from = n) %>% 
-      arrange(fundingagency, primepartner)
+      arrange(funding_agency, prime_partner_name)
 
     addWorksheet(wb, tbl_name)
     writeData(wb, tbl_name, df_ptnr_tbl)
@@ -163,7 +168,7 @@
   create_ip_tbl("ptnr_5", ptnr_ind_tbl5)
   create_ip_tbl("ptnr_6", ptnr_ind_tbl6)
 
-  saveWorkbook(wb, "Dataout/COP22_TZA_Table-Check.xlsx", overwrite = TRUE)
+  saveWorkbook(wb, file.path(folderpath_output, "COP22_TZA_Table-Check.xlsx"), overwrite = TRUE)
     
     
     
