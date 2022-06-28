@@ -40,7 +40,7 @@
     df_mech <- df_totals %>% 
       filter(mech_code == mech,
              country == cntry,
-             `2023` > 0)
+             targets > 0)
     
     meta <- df_mech %>% 
       distinct(country, mech_code) %>%
@@ -73,15 +73,14 @@
   #aggregate totals
   df_totals <- df_msd %>% 
     filter(funding_agency == "USAID",
+           fiscal_year == fy,
            indicator %in% inds) %>%
     pluck_totals() %>% 
     clean_indicator() %>% 
     mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>% 
     count(country, mech_code, mech_name, prime_partner_name, fiscal_year, indicator, wt = targets, name = "targets") %>% 
     arrange(country, mech_code, indicator) %>% 
-    mutate(targets = na_if(targets, 0)) %>% 
-    pivot_wider(names_from = fiscal_year,
-                values_from = targets)
+    mutate(targets = na_if(targets, 0))
 
 # CREATE TARGET FILES -----------------------------------------------------
 
@@ -123,4 +122,3 @@
   #share folder
   drive_share(as_id(fldr_id), role = "reader",
               type = "domain", domain = "usaid.gov")
-  
