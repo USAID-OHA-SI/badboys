@@ -71,7 +71,9 @@
     paste0(baseurl,"api/29/analytics?",
            "dimension=pe:", fy-1, "Oct&", #period
            "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
+           "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
            "dimension=SH885jaRe0o&", #Funding Mechanism
+           "dimension=BOyWrF33hiR&", #Implementing Partner
            # "dimension=IeMmjHyBUpi:W8imnja2Owd&", #Targets / Results - targets
            "displayProperty=SHORTNAME&skipMeta=false")
            
@@ -102,6 +104,7 @@
     convert_datim_pd_to_qtr() %>% 
     select(country = `Organisation unit`,
            mech = `Funding Mechanism`,
+           prime_partner_name = `Implementing Partner`,
            period = Period,
            ind = Data,
            hivstatus = `HIV Test Status (Inclusive)`,
@@ -142,13 +145,31 @@
    summarise(targets = sum(targets),
              .groups = "drop")
  
+ 
+ # CREATE TARGET FILES -----------------------------------------------------
+ 
+ #list of mechanism
+ mechs <- df_msd %>% 
+   filter(fiscal_year == fy,
+          funding_agency == "USAID") %>%
+   pluck_totals() %>% 
+   distinct(mech_code, operatingunit, country) %>%
+   mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>% 
+   select(mech_code, country)
+ 
+ #create folder for storing IM target files
+ temp_folder()
+ 
+ #create IM target files
+ mechs %>%
+   pwalk(~print_targets(..1, ..2, folderpath_tmp))
 
   
-  # datim_dimensions() %>%
-  #   arrange(dimension) %>%
-  #   prinf()
-  # # 
-  # datim_dim_items("HIV Test Status (Inclusive)") %>% 
-  #   pull(id) %>% 
-  #   str_flatten(";")
+  datim_dimensions() %>%
+    arrange(dimension) %>%
+    prinf()
+  #
+  datim_dim_items("Funding Partner") %>%
+    pull(id) %>%
+    str_flatten(";")
   
