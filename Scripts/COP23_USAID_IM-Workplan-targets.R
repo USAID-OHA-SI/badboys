@@ -24,23 +24,31 @@
   #target FY
   fy <- 2024
    
+  
 
 # IDENTIFY COP INDICATORS -------------------------------------------------
   
-  v_ind_uids <- glue("{baseurl}api/indicators?paging=false") %>% 
+  df_ind_uids <- glue("{baseurl}api/indicators?paging=false") %>% 
     datim_execute_query(datim_user(), datim_pwd(), flatten = TRUE) %>% 
     purrr::pluck("indicators") %>% 
     tibble::as_tibble() %>% 
     janitor::clean_names() %>% 
     dplyr::rename(indicators = display_name) %>% 
-    filter(str_detect(indicators, "COP23")) %>% 
+    filter(str_detect(indicators, glue("COP{fy-1-2000}")))
+  
+  v_ind_uids <- df_ind_uids %>% 
+    filter(str_detect(indicators, "HTS_TST", negate = TRUE)) %>%
     pull(id) %>% 
     str_flatten(";")
   
+  v_hts_uids <- df_ind_uids %>% 
+    filter(str_detect(indicators, "(HTS_TST|HTS_INDEX|PMTCT_STAT|TB_STAT|VMMC_CIRC) ")) %>% 
+    pull(id) %>% 
+    str_flatten(";")
 
 # IDENTIFY HTS MODALITIES -------------------------------------------------
 
-  v_hts_uids <- datim_dim_items("HTS Modality (USE ONLY for FY23 Results/FY24 Targets)") %>% 
+  v_modality_uids <- datim_dim_items("HTS Modality (USE ONLY for FY23 Results/FY24 Targets)") %>% 
     pull(id) %>% 
     str_flatten(";")
 
@@ -52,47 +60,95 @@
      
 # IMPORT ------------------------------------------------------------------
   
- 
-  ou_uid <- "l1KFEXKI4Dg"
+  cntry_name <- "Botswana"
+  cntry_uid <- "l1KFEXKI4Dg"
   org_lvl <- "3"
   
-  
-  print(paste("Running DATIM API for", ou_name,  Sys.time(),
+  print(paste("Running DATIM API for", cntry_name,  Sys.time(),
               sep = " ... "))
   
-  core_url <-
+  url_core <-
     paste0(baseurl,"api/29/analytics?",
            "dimension=pe:", fy-1, "Oct&", #period
-           "dimension=ou:LEVEL-", org_lvl, ";", ou_uid, "&", #level and ou
+           "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
            "dimension=SH885jaRe0o&", #Funding Mechanism
-           "dimension=IeMmjHyBUpi:W8imnja2Owd&", #Targets / Results - targets
-           "dimension=dx:", v_ind_uids, "&",
+           # "dimension=IeMmjHyBUpi:W8imnja2Owd&", #Targets / Results - targets
            "displayProperty=SHORTNAME&skipMeta=false")
+           
+  url_nonhts <- paste0(url_core, "&",
+                        "dimension=dx:", v_ind_uids)
+  tictoc::tic()
+  df_nonhts <- datim_process_query(url_nonhts)
+  tictoc::toc()
   
+  url_hts <- paste0(url_core, "&",
+                    "dimension=dx:", v_hts_uids, "&",
+                    # "dimension=fmxSIyzexmb&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
+                    # "filter=fmxSIyzexmb:JyHpOg0Iu5a;UKsxJneeEKv;T5c3iO27ZXo;KBywuUyKKkt;ffRRNlcJcDm;JhqbE6DaPHa;u4O4VoYcpsY;Pwr47IqyUOv;UO19EkMqGSv;U82Nff6n18Z;jdknuTGPngF;MvNJB6wzMyI;sRbK6bY4Ovz;vrZ765PIJXR;iqox5fMeLYE;ZvodeG6VDz4;mnAHV80OjSs;eVDKHRK7jCS;TR2heMhJZDD;XpawfSjdgiS;cVAqTMhzlvE;JF0YmkyBHz7;DbdhNI4vars&dimension=dx%3APBSj3jctjNH;MEwHLgltuUu;NFJBeaZnRi7;wRWdn96180W;v5bfqQwbt3a;gn3MmK1K6kI;g7njYDJYNJq;iXE6hq0GOVQ;bPobyyvv6b8;LDeOYoqrutf;J9aO4FuubsD;newAhTXirTN;jZHSDieHo9w;brp6rRBQXey;mHcr32IGNoB;UFw1hrglrGm;SgqljkXlVGl;OuuakKg2UMY;Yrv1NvxziHD;BaPIehJK2l7;X4afMjXUaG6;Ad8fKCBHcby;cOd9wGwiiyL;MG5NlhPq6EK;oLm2BRnu9mb;X5Nc1Ae2rY2;wdiPHReljP1;ro6dYIiog4T;ZlRRL8wjvfy;Pb2MfODeGi2;WZiqIeyR6lQ;ts9khEv4uMY;VKKuPE3h8GI;rQW3olZ8hyl;zxsvwaENBI8;J4uNnN08ohQ;yUotfy43BWY;ca7QmUTl13A;LBQINrmB9gs;cbXDrqRcRzv;QbVoRzXCGyV;MMHmOW51JNY;HaXrHFdlRy7;AUeOrHw0JAG;JRzebVm6tvS&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
+                    "dimension=ipBFu42t2sJ:l5mQOWpLybR;ntdVDkWUOj9;Qnfnp6VzPcP") #HIV Test Status (Inclusive)
+  tictoc::tic()
+  df_hts <- datim_process_query(url_hts)
+  tictoc::toc()
   
-  df <- datim_process_query(core_url)
-  #TODO remove HTS
+  df_hts <- df_hts %>% 
+    mutate(Data = str_replace(Data, "(?<=Targets ).*(?= \\()", "HTS_TST"))
+    
   
-  hts_url <- paste0(baseurl,"api/29/analytics?",
-         "dimension=pe:", fy-1, "Oct&", #period
-         "dimension=ou:LEVEL-", org_lvl, ";", ou_uid, "&", #level and ou
-         "dimension=IeMmjHyBUpi:W8imnja2Owd&", #Targets / Results - targets
-         "dimension=fmxSIyzexmb%3AJyHpOg0Iu5a%3BUKsxJneeEKv%3BT5c3iO27ZXo%3BKBywuUyKKkt%3BffRRNlcJcDm%3BJhqbE6DaPHa%3Bu4O4VoYcpsY%3BPwr47IqyUOv%3BUO19EkMqGSv%3BU82Nff6n18Z%3BjdknuTGPngF%3BMvNJB6wzMyI%3BsRbK6bY4Ovz%3BvrZ765PIJXR%3Biqox5fMeLYE%3BZvodeG6VDz4%3BmnAHV80OjSs%3BeVDKHRK7jCS%3BTR2heMhJZDD%3BXpawfSjdgiS%3BcVAqTMhzlvE%3BJF0YmkyBHz7%3BDbdhNI4vars&dimension=dx%3APBSj3jctjNH%3BMEwHLgltuUu%3BNFJBeaZnRi7%3BwRWdn96180W%3Bv5bfqQwbt3a%3Bgn3MmK1K6kI%3Bg7njYDJYNJq%3BiXE6hq0GOVQ%3BbPobyyvv6b8%3BLDeOYoqrutf%3BJ9aO4FuubsD%3BnewAhTXirTN%3BjZHSDieHo9w%3Bbrp6rRBQXey%3BmHcr32IGNoB%3BUFw1hrglrGm%3BSgqljkXlVGl%3BOuuakKg2UMY%3BYrv1NvxziHD%3BBaPIehJK2l7%3BX4afMjXUaG6%3BAd8fKCBHcby%3BcOd9wGwiiyL%3BMG5NlhPq6EK%3BoLm2BRnu9mb%3BX5Nc1Ae2rY2%3BwdiPHReljP1%3Bro6dYIiog4T%3BZlRRL8wjvfy%3BPb2MfODeGi2%3BWZiqIeyR6lQ%3Bts9khEv4uMY%3BVKKuPE3h8GI%3BrQW3olZ8hyl%3BzxsvwaENBI8%3BJ4uNnN08ohQ%3ByUotfy43BWY%3Bca7QmUTl13A%3BLBQINrmB9gs%3BcbXDrqRcRzv%3BQbVoRzXCGyV%3BMMHmOW51JNY%3BHaXrHFdlRy7%3BAUeOrHw0JAG%3BJRzebVm6tvS&",
-         "dimension=ipBFu42t2sJ&",
-         "displayProperty=SHORTNAME&skipMeta=false")
-  
-  df_hts <- datim_process_query(hts_url)
-  #TODO remove *_POS
-  #TODO create HTS_TST indicator
-  #TODO create
-  
-  
-  # datim_dimensions() %>% 
-  #   arrange(dimension) %>% 
-  #   prinf()
-  # 
-  # datim_dim_items("HIV Test Status (Inclusive)")
+  df_targets <- bind_rows(df_nonhts, df_hts)
   
 # MUNGE -------------------------------------------------------------------
-  
 
+  df_targets <- df_targets %>% 
+    convert_datim_pd_to_qtr() %>% 
+    select(country = `Organisation unit`,
+           mech = `Funding Mechanism`,
+           period = Period,
+           ind = Data,
+           hivstatus = `HIV Test Status (Inclusive)`,
+           targets = Value
+           )
+  
+  df_targets <- df_targets %>% 
+    separate_wider_delim(mech, names = c(NA, "mech_code", "mech_name"), 
+                         delim = " - ",
+                         too_many = "merge") %>% 
+    mutate(mech_name = str_trim(mech_name))
+  
+  df_targets <- df_targets %>%
+      mutate(ind = ind %>%
+               str_trim() %>% 
+               str_replace("3T", "3 T") %>% 
+               str_remove(" \\(N\\)") %>%
+               str_replace(" \\(D\\)", "_D")) %>%
+      separate_wider_delim(ind,
+                           names = c(NA, NA, "indicator", "age_coarse"),
+                           delim = " ",
+                           too_few = "align_start")
+  
+  
+  df_targets <- df_targets %>% 
+    filter(is.na(hivstatus)) %>% 
+    bind_rows(df_targets %>% 
+                filter(hivstatus == "HIV Positive (Inclusive)") %>% 
+                mutate(indicator = "HTS_TST_POS")) %>% 
+    select(-hivstatus)
+  
+  
+ df_targets <- df_targets %>% 
+    mutate(age_coarse = str_replace(age_coarse, "(15|18)-", "<\\1"))
+  
+ df_targets <- df_targets %>% 
+   group_by(country, mech_code, mech_name, period, indicator) %>% 
+   summarise(targets = sum(targets),
+             .groups = "drop")
+ 
+
+  
+  # datim_dimensions() %>%
+  #   arrange(dimension) %>%
+  #   prinf()
+  # # 
+  # datim_dim_items("HIV Test Status (Inclusive)") %>% 
+  #   pull(id) %>% 
+  #   str_flatten(";")
+  
