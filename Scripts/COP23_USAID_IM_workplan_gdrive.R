@@ -84,56 +84,11 @@ df_sub <- map_dfr(id_list, list_folders)
 df_folder <- df_sub %>% 
   left_join(master_folder, by = c("parent_folder_id" = "ou_id"))
 
+df_folder %>% 
+  select(id, ou_name) %>% 
+  write_csv("Dataout/COP_workplan_upload_crosswalk.csv")
+
 
 # push to drive based on OU name and associated ID
-
-
-# # REGIONAL ---------------------------------------
-# 
-# #get OU level g_ids
-# regional_folder <- master_folder %>% 
-#   filter(str_detect(ou_name, "Region"))
-# 
-# id_list <- regional_folder$ou_id
-# 
-# # Function to recursively list folders in each OU folder
-# list_regional_folders <- function(folder_id) {
-#   
-#   #look within OU folder and filter to COP23 folder
-#   folders <- drive_ls(folder_id) %>% 
-#     filter(name %in% c("COP23 / FY24", "COP23/FY24"))
-#   
-#   #grab those subfolder ids
-#   cop23_ids <- folders$id
-#   
-#   #look within sub folders to get IM target table folders; add parent id back to df
-#   sub_cntry_folders <- drive_ls(cop23_ids) %>% 
-#     #filter(name %in% c("IM Target Tables")) %>% 
-#     mutate(ou = str_extract(name, paste0(".*?(?=", " ROP23 IP Workplan", ")"))) %>% 
-#     rename(cntry_id = id)
-#   
-#   cntry_map <- sub_cntry_folders %>% 
-#     select(ou, cntry_id)
-#   
-#   
-#   # #grab those subfolder ids
-#   # sub_cntry_ids <- sub_cntry_folders$cntry_id
-#   # 
-#   # #look within sub folders to get IM target table folders; add parent id back to df
-#   # regional_folders <- drive_ls(sub_cntry_ids) %>% 
-#   #   filter(name %in% c("IM Target Tables")) %>% 
-#   #   mutate(parent_folder_id = sub_cntry_ids)
-#   
-#   return(cntry_map)
-#   
-# }
-
-# #apply function
-# df_sub <- map_dfr(id_list, list_regional_folders)
-# 
-# #left join back the OU folder info
-# df_folder <- df_sub %>% 
-#   left_join(master_folder, by = c("parent_folder_id" = "ou_id"))
-
 
 
