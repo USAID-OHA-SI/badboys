@@ -143,7 +143,6 @@
     convert_datim_pd_to_qtr() %>% 
     select(country = `Organisation unit`,
            mech = `Funding Mechanism`,
-           # prime_partner_name = `Implementing Partner`,
            period = Period,
            ind = Data,
            hivstatus = `HIV Test Status (Specific)`,
