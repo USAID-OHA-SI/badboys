@@ -52,6 +52,15 @@
     pull(id) %>% 
     str_flatten(";")
 
+  datim_dimensions() %>% 
+    arrange(dimension) %>% 
+    prinf()
+  
+  v_status_uids <- datim_dim_items("HIV Test Status (Specific)") %>% 
+    filter(str_detect(item, "(Known|Unknown)", negate = TRUE)) %>% 
+    pull(id) %>% 
+    str_flatten(";")
+  
 # IDENTIFY COUNTRY UIDS ---------------------------------------------------
 
   df_cntry_info <- get_outable() %>% 
@@ -60,8 +69,8 @@
      
 # IMPORT ------------------------------------------------------------------
   
-  cntry_name <- "Botswana"
-  cntry_uid <- "l1KFEXKI4Dg"
+  cntry_name <- "Malawi"
+  cntry_uid <- "lZsCb6y0KDX"
   org_lvl <- "3"
   
   print(paste("Running DATIM API for", cntry_name,  Sys.time(),
@@ -73,8 +82,7 @@
            "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
            "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
            "dimension=SH885jaRe0o&", #Funding Mechanism
-           "dimension=BOyWrF33hiR&", #Implementing Partner
-           # "dimension=IeMmjHyBUpi:W8imnja2Owd&", #Targets / Results - targets
+           # "dimension=BOyWrF33hiR&", #Implementing Partner
            "displayProperty=SHORTNAME&skipMeta=false")
            
   url_nonhts <- paste0(url_core, "&",
@@ -86,8 +94,7 @@
   url_hts <- paste0(url_core, "&",
                     "dimension=dx:", v_hts_uids, "&",
                     # "dimension=fmxSIyzexmb&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
-                    # "filter=fmxSIyzexmb:JyHpOg0Iu5a;UKsxJneeEKv;T5c3iO27ZXo;KBywuUyKKkt;ffRRNlcJcDm;JhqbE6DaPHa;u4O4VoYcpsY;Pwr47IqyUOv;UO19EkMqGSv;U82Nff6n18Z;jdknuTGPngF;MvNJB6wzMyI;sRbK6bY4Ovz;vrZ765PIJXR;iqox5fMeLYE;ZvodeG6VDz4;mnAHV80OjSs;eVDKHRK7jCS;TR2heMhJZDD;XpawfSjdgiS;cVAqTMhzlvE;JF0YmkyBHz7;DbdhNI4vars&dimension=dx%3APBSj3jctjNH;MEwHLgltuUu;NFJBeaZnRi7;wRWdn96180W;v5bfqQwbt3a;gn3MmK1K6kI;g7njYDJYNJq;iXE6hq0GOVQ;bPobyyvv6b8;LDeOYoqrutf;J9aO4FuubsD;newAhTXirTN;jZHSDieHo9w;brp6rRBQXey;mHcr32IGNoB;UFw1hrglrGm;SgqljkXlVGl;OuuakKg2UMY;Yrv1NvxziHD;BaPIehJK2l7;X4afMjXUaG6;Ad8fKCBHcby;cOd9wGwiiyL;MG5NlhPq6EK;oLm2BRnu9mb;X5Nc1Ae2rY2;wdiPHReljP1;ro6dYIiog4T;ZlRRL8wjvfy;Pb2MfODeGi2;WZiqIeyR6lQ;ts9khEv4uMY;VKKuPE3h8GI;rQW3olZ8hyl;zxsvwaENBI8;J4uNnN08ohQ;yUotfy43BWY;ca7QmUTl13A;LBQINrmB9gs;cbXDrqRcRzv;QbVoRzXCGyV;MMHmOW51JNY;HaXrHFdlRy7;AUeOrHw0JAG;JRzebVm6tvS&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
-                    "dimension=ipBFu42t2sJ:l5mQOWpLybR;ntdVDkWUOj9;Qnfnp6VzPcP") #HIV Test Status (Inclusive)
+                    "dimension=bDWsPYyXgWP:", v_status_uids) #HIV Test Status (Specific)
   tictoc::tic()
   df_hts <- datim_process_query(url_hts)
   tictoc::toc()
@@ -104,10 +111,10 @@
     convert_datim_pd_to_qtr() %>% 
     select(country = `Organisation unit`,
            mech = `Funding Mechanism`,
-           prime_partner_name = `Implementing Partner`,
+           # prime_partner_name = `Implementing Partner`,
            period = Period,
            ind = Data,
-           hivstatus = `HIV Test Status (Inclusive)`,
+           hivstatus = `HIV Test Status (Specific)`,
            targets = Value
            )
   
@@ -130,9 +137,8 @@
   
   
   df_targets <- df_targets %>% 
-    filter(is.na(hivstatus)) %>% 
     bind_rows(df_targets %>% 
-                filter(hivstatus == "HIV Positive (Inclusive)") %>% 
+                filter(str_detect(hivstatus, "Positive")) %>% 
                 mutate(indicator = "HTS_TST_POS")) %>% 
     select(-hivstatus)
   
@@ -141,35 +147,91 @@
     mutate(age_coarse = str_replace(age_coarse, "(15|18)-", "<\\1"))
   
  df_targets <- df_targets %>% 
-   group_by(country, mech_code, mech_name, period, indicator) %>% 
+   group_by(country, mech_code, mech_name, period, indicator) %>%
    summarise(targets = sum(targets),
-             .groups = "drop")
+             .groups = "drop") %>%
+   arrange(country, mech_code, indicator)
  
  
  # CREATE TARGET FILES -----------------------------------------------------
  
- #list of mechanism
- mechs <- df_msd %>% 
-   filter(fiscal_year == fy,
-          funding_agency == "USAID") %>%
-   pluck_totals() %>% 
-   distinct(mech_code, operatingunit, country) %>%
-   mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>% 
-   select(mech_code, country)
  
- #create folder for storing IM target files
- temp_folder()
+ write_csv(df_targets,
+           "Data/test.csv",
+           na = "")
  
- #create IM target files
- mechs %>%
-   pwalk(~print_targets(..1, ..2, folderpath_tmp))
+ # #list of mechanism
+ # mechs <- df_targets %>%
+ #   distinct(mech_code, country) %>%
+ #   arrange(country, mech_code) %>% 
+ #   # mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>%
+ #   select(mech_code, country)
+ # 
+ # #create folder for storing IM target files
+ # temp_folder()
+ # 
+ # #create IM target files
+ # mechs %>%
+ #   pwalk(~print_targets(..1, ..2, folderpath_tmp))
 
-  
-  datim_dimensions() %>%
-    arrange(dimension) %>%
-    prinf()
-  #
-  datim_dim_items("Funding Partner") %>%
-    pull(id) %>%
-    str_flatten(";")
-  
+
+# CHECK -------------------------------------------------------------------
+
+
+ 
+ #USAID/ou level testing check
+ 
+ df_targets %>% 
+   count(indicator, wt = targets) %>% 
+   arrange(indicator)
+ 
+ 
+ 
+ 
+ library(tameDP)
+
+ df_dp <- tame_dp("../../../Downloads/PSNUxIM_Malawi_ver12May2023.xlsx",
+ # df_dp <- tame_dp("../../../Downloads/Final_PSNUxIM_Botswana_20230512_170337_MD512.xlsx",
+                  type = "PSNUxIM")
+ 
+ df_dp %>% 
+   clean_indicator() %>% 
+   filter((str_detect(standardizeddisaggregate, "(KeyPop|Age/Sex/KnownNewResult)", negate = TRUE) | indicator == "KP_PREV"),
+          mech_code %in% unique(df_targets$mech_code),
+          !(indicator == "PrEP_CT" & standardizeddisaggregate == "Age/Sex/HIVStatus")) %>% 
+   count(indicator, wt = targets,
+         name = "targets_tdp")
+ 
+ df_dp %>% 
+   clean_indicator() %>% 
+   filter((str_detect(standardizeddisaggregate, "(KeyPop|Age/Sex/KnownNewResult)", negate = TRUE) | indicator == "KP_PREV"),
+          mech_code %in% unique(df_targets$mech_code),
+          !(indicator == "PrEP_CT" & standardizeddisaggregate == "Age/Sex/HIVStatus")) %>% 
+   count(mech_code, indicator, wt = targets,
+         name = "targets_tdp") %>% 
+   full_join(df_targets, .) %>% 
+   mutate(match = targets == targets_tdp) %>% 
+   View()
+   
+ 
+ df_dp %>% 
+   filter(indicator == "PrEP_CT") %>% 
+   count(standardizeddisaggregate, wt = targets)
+ 
+ df_msd <- si_path() %>% 
+   return_latest("OU_IM") %>% 
+   read_psd()   
+
+ df_msd %>% 
+   filter(indicator == "PrEP_CT",
+          fiscal_year == 2023) %>% 
+   count(standardizeddisaggregate, wt = cumulative)
+ 
+ 
+ df_dp %>% 
+   filter(str_detect(standardizeddisaggregate, "(KeyPopAge/Sex/KnownNewResult)", negate = TRUE)) %>% 
+   count(indicator, standardizeddisaggregate, wt = targets) %>% 
+   arrange(indicator, standardizeddisaggregate) %>% 
+   group_by(indicator) %>% 
+   mutate(rows = n())
+ 
