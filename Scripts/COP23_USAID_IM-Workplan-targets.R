@@ -12,6 +12,8 @@
   library(gagglr)
   library(glue)
   library(grabr)
+  library(tictoc)
+  library(vroom)
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -24,8 +26,8 @@
   #target FY
   fy <- 2024
    
+  temp_folder()
   
-
 # IDENTIFY COP INDICATORS -------------------------------------------------
   
   df_ind_uids <- glue("{baseurl}api/indicators?paging=false") %>% 
@@ -42,7 +44,7 @@
     str_flatten(";")
   
   v_hts_uids <- df_ind_uids %>% 
-    filter(str_detect(indicators, "(HTS_TST|HTS_INDEX|PMTCT_STAT|TB_STAT|VMMC_CIRC) ")) %>% 
+    filter(str_detect(indicators, "HTS_TST")) %>% 
     pull(id) %>% 
     str_flatten(";")
 
@@ -61,50 +63,74 @@
     pull(id) %>% 
     str_flatten(";")
   
-# IDENTIFY COUNTRY UIDS ---------------------------------------------------
 
-  df_cntry_info <- get_outable() %>% 
-      arrange(country) %>% 
-      select(country, country_uid, country_lvl)
-     
-# IMPORT ------------------------------------------------------------------
-  
-  cntry_name <- "Malawi"
-  cntry_uid <- "lZsCb6y0KDX"
-  org_lvl <- "3"
-  
-  print(paste("Running DATIM API for", cntry_name,  Sys.time(),
-              sep = " ... "))
-  
-  url_core <-
-    paste0(baseurl,"api/29/analytics?",
-           "dimension=pe:", fy-1, "Oct&", #period
-           "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
-           "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
-           "dimension=SH885jaRe0o&", #Funding Mechanism
-           # "dimension=BOyWrF33hiR&", #Implementing Partner
-           "displayProperty=SHORTNAME&skipMeta=false")
-           
-  url_nonhts <- paste0(url_core, "&",
-                        "dimension=dx:", v_ind_uids)
-  tictoc::tic()
-  df_nonhts <- datim_process_query(url_nonhts)
-  tictoc::toc()
-  
-  url_hts <- paste0(url_core, "&",
-                    "dimension=dx:", v_hts_uids, "&",
-                    # "dimension=fmxSIyzexmb&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
-                    "dimension=bDWsPYyXgWP:", v_status_uids) #HIV Test Status (Specific)
-  tictoc::tic()
-  df_hts <- datim_process_query(url_hts)
-  tictoc::toc()
-  
-  df_hts <- df_hts %>% 
-    mutate(Data = str_replace(Data, "(?<=Targets ).*(?= \\()", "HTS_TST"))
+# FUNCTION - EXTRACTION API -----------------------------------------------
+
+  extract_targets <- function(cntry_name, cntry_uid, cntry_iso, org_lvl, folderpath_export){
     
+    print(glue("Running DATIM API for...{cntry_name}...{Sys.time()}"))
+    
+    #API url
+    url_core <-
+      paste0(baseurl,"api/29/analytics?",
+             "dimension=pe:", fy-1, "Oct&", #period
+             "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
+             "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
+             "dimension=SH885jaRe0o&", #Funding Mechanism
+             # "dimension=BOyWrF33hiR&", #Implementing Partner
+             "displayProperty=SHORTNAME&skipMeta=false")
+    
+    #add data elements for non HTS indicators to url
+    url_nonhts <- paste0(url_core, "&",
+                         "dimension=dx:", v_ind_uids)
+    
+    #extract non-HTS targets
+    tic("non-HTS API")
+    df_nonhts <- datim_process_query(url_nonhts)
+    # toc()
+    
+    #add data elements for HTS indicators to url
+    url_hts <- paste0(url_core, "&",
+                      "dimension=dx:", v_hts_uids, "&",
+                      # "dimension=fmxSIyzexmb&", #HTS Modality (USE ONLY for FY23 Results/FY24 Targets)
+                      "dimension=bDWsPYyXgWP:", v_status_uids) #HIV Test Status (Specific)
+    
+    #extract non-HTS targets
+    # tic("HTS API")
+    df_hts <- datim_process_query(url_hts)
+    toc()
+    
+    #bind datasets
+    df_targets <- bind_rows(df_nonhts, df_hts)
+    
+    #export
+    if(!missing(folderpath_export))
+      write_csv(df_targets, glue("{folderpath_export}/COP{fy-1-2000}-targets_{cntry_iso}.csv"),
+                na = "")
+    
+    invisible(df_targets)
+    
+  }
   
-  df_targets <- bind_rows(df_nonhts, df_hts)
   
+# RUN API -----------------------------------------------------------------
+
+  #country table for UIDs and names
+  df_cntry_info <- get_outable() %>% 
+    arrange(country) %>% 
+    select(starts_with("country"))
+  
+  #extract
+  df_cntry_info %>% 
+    # filter(country == "Malawi") %>% 
+    pwalk(~extract_targets(..1, ..2, ..3, ..4, "Data"))
+    
+
+# IMPORT DATA -------------------------------------------------------------
+
+  df_targets <- list.files(folderpath_tmp, full.names = TRUE) %>% 
+    vroom()
+      
 # MUNGE -------------------------------------------------------------------
 
   df_targets <- df_targets %>% 
@@ -152,27 +178,40 @@
              .groups = "drop") %>%
    arrange(country, mech_code, indicator)
  
+
+# FUNCTION - PRINT TARGET FILES -------------------------------------------
+
+ print_targets <- function(df, mech, cntry, output_folder){
+   df_mech <- df%>% 
+     filter(mech_code == mech,
+            country == cntry)
+   
+   meta <- df_mech %>% 
+     distinct(country, mech_code) %>%
+     mutate(country = str_remove_all(country, " |'"),
+            name = glue("COP{cop_yr}_Targets_{country}_{mech_code}.csv"))
+   
+   print(glue("Printing...{meta$country}-{meta$mech_code}"))
+   
+   write_csv(df_mech, file.path(output_folder, meta$name), na = "")
+ } 
  
  # CREATE TARGET FILES -----------------------------------------------------
  
- 
- write_csv(df_targets,
-           "Data/test.csv",
-           na = "")
- 
- # #list of mechanism
- # mechs <- df_targets %>%
- #   distinct(mech_code, country) %>%
- #   arrange(country, mech_code) %>% 
- #   # mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>%
- #   select(mech_code, country)
- # 
- # #create folder for storing IM target files
- # temp_folder()
- # 
- # #create IM target files
- # mechs %>%
- #   pwalk(~print_targets(..1, ..2, folderpath_tmp))
+
+ #list of mechanism
+ mechs <- df_targets %>%
+   distinct(mech_code, country) %>%
+   arrange(country, mech_code) %>%
+   # mutate(country = ifelse(operatingunit == country, operatingunit, glue("{operatingunit}-{country}"))) %>%
+   select(mech_code, country)
+
+ #create folder for storing IM target files
+ temp_folder()
+
+ #create IM target files
+ mechs %>%
+   pwalk(~print_targets(..1, ..2, folderpath_tmp))
 
 
 # CHECK -------------------------------------------------------------------
