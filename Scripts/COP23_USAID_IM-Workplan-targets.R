@@ -229,7 +229,8 @@
 # UPLOAD FILES ------------------------------------------------------------
 
    #import Gdrive id mapping table & align to target table names
-   df_xwalk <- read_csv("Data/COP_workplan_upload_crosswalk.csv") %>% 
+   #created in COP23_USAID_IM_workplan_gdrive.R
+   df_xwalk <- read_csv("Dataout/COP_workplan_upload_crosswalk.csv") %>% 
      mutate(ou_name = ou_name %>% 
               str_remove_all(" ") %>% 
               str_remove("'") %>% 
@@ -251,8 +252,10 @@
        pwalk(~ drive_upload(..1,
                             path = as_id(..2),
                             name = basename(.x),
-                            type = "spreadsheet"))
+                            type = "spreadsheet",
+                            overwrite = TRUE))
    toc()
+   
 
 # CHECKS ------------------------------------------------------------------
 
