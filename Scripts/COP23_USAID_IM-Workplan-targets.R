@@ -235,7 +235,6 @@
               str_remove("'") %>% 
               str_remove("al$"))
  
- 
    #identify exported target files and assoicate with GDrive folder  
    local_files <- list.files(folderpath_tmp, full.names = TRUE) %>% 
      tibble(filepath = .) %>% 
@@ -247,11 +246,13 @@
      select(filepath, id, basename)
  
    #push to target tables to Gdrive
+   tic()
      local_files %>% 
        pwalk(~ drive_upload(..1,
                             path = as_id(..2),
                             name = basename(.x),
                             type = "spreadsheet"))
+   toc()
 
 # CHECKS ------------------------------------------------------------------
 
