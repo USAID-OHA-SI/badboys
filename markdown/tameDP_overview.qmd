@@ -12,9 +12,9 @@ format:
     scrollable: true
 ---
 
-##  {background-image="minoria_cascade.png"}
+##  {background-image=https://github.com/USAID-OHA-SI/badboys/blob/main/markdown/minoria_cascade.png?raw=true}
 
-##  {background-image="minoria_cascade.png" background-opacity=".15"}
+##  {background-image=https://github.com/USAID-OHA-SI/badboys/blob/main/markdown/minoria_cascade.png?raw=true background-opacity=".15"}
 
 -   How many new on treatment (TX_NEW) for 15+ are in each PSNU?
 
@@ -22,7 +22,7 @@ format:
 
 -   How do the planned FY60 targets compare to historic results and/or targets?
 
-## Enter...`tameDP` 
+## Enter...`tameDP`
 
 Imports and tidies data from the PEPFAR, Excel-based COP Target Setting Tool (formerly known as the Data Pack)
 
@@ -80,19 +80,20 @@ GHSD's [Shiny App](https://apps.datim.org/datapack/), built off [`datapackr`](ht
 :::
 
 ::: {.column width="60%"}
-![](shiny.png)
+![](https://github.com/USAID-OHA-SI/badboys/blob/main/markdown/shiny.png?raw=true)
 :::
 :::
 
 ## Being aware of potential drawbacks
-  - You need to have R installed with `tameDP` and the dependent packages
-  - No connection to PAW
-  - Only so much we can test without having completed TST files
-  - Results may not 100% match the "Flatpack"
-  
+
+-   You need to have R installed with `tameDP` and the dependent packages
+-   No connection to PAW
+-   Only so much we can test without having completed TST files
+-   Results may not 100% match the "Flatpack"
+
 ## Reporting an issue
 
-If you run into an error, you can either submit a [new issue](https://github.com/USAID-OHA-SI/tameDP/issues/new/choose) on GitHub (if you have a GitHub account) or you can email us at [si.coreanalytics@usaid.gov](si.coreanalytics@usaid.gov)
+If you run into an error, you can either submit a [new issue](https://github.com/USAID-OHA-SI/tameDP/issues/new/choose) on GitHub (if you have a GitHub account) or you can email us at [si.coreanalytics\@usaid.gov](si.coreanalytics@usaid.gov)
 
 ## Appendix
 
