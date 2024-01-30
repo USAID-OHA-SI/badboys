@@ -54,3 +54,7 @@ AI/*
 GIS/*
 Images/*
 Graphics/*
+
+markdown/*
+!markdown/*.qmd
+!markdown/*.png

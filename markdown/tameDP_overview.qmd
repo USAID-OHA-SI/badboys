@@ -1,0 +1,127 @@
+---
+title: "."
+title-slide-attributes: 
+    data-background-image: /background.png
+    data-background-size: contain
+    data-background-opacity: "1"
+format:
+  revealjs:
+    slide-number: true
+    show-slide-number: print
+    preview-links: auto
+    scrollable: true
+---
+
+##  {background-image="minoria_cascade.png"}
+
+##  {background-image="minoria_cascade.png" background-opacity=".15"}
+
+-   How many new on treatment (TX_NEW) for 15+ are in each PSNU?
+
+. . .
+
+-   How do the planned FY60 targets compare to historic results and/or targets?
+
+## Enter...`tameDP` 
+
+Imports and tidies data from the PEPFAR, Excel-based COP Target Setting Tool (formerly known as the Data Pack)
+
+. . .
+
+-   Imports Target Setting Tool as tidy data frame
+-   Breaks up data elements stored in the indicatorCode column into distinct columns
+-   Cleans up the HTS variables, separating modalities out of the indicator name
+-   Creates a statushiv column
+-   Cleans and separates PSNU and PSNU UID into distinct columns
+-   Adds in mechanism information from DATIM, including operatingunit, funding - agency, partner and mechanism name
+-   Removes any rows with no targets
+-   Allows for aggregate to the PSNU level
+
+## How do I use `tameDP`?
+
+Prework
+
+-   Need to install R (and ideally RStudio); See [Appendix A](#sec-installr)
+-   Need to install a handful of R packages; See [Appendix B](#sec-installpack)
+-   Need a Target Setting Tool
+
+Usage
+
+-   Load the library and run one to two commands
+
+```{r}
+#| eval: false
+#| echo: true
+library(tameDP)
+library(readr)
+
+#set your filepath
+tst_path <- "../tools/TargetSettingTool_Minoria_20590101.xlsx"
+#import/tidy & export
+tame_dp(tst_path) %>% 
+  write_csv("../outputs/TST_Minoria_tidy.csv")
+```
+
+## Why is `tameDP` useful?
+
+-   Working with the data in the TST itself is cumbersome given (1) the level of granularity needed to generate the targets and (2) the wide structure
+-   `tameDP` allows an analyst to quickly pull and extract a tidy dataset that is usable for analysis and visualization regardless of what software program you end up using
+-   The package creates facsimile PSD structure for your data, making it familiar and giving you calculated indicators useful to analysis (i.e. HTS_TST, HTS_TST_POS, PMTCT_POS) and allows to you bind it to historic MSD files
+
+## Why is `tameDP` useful? (cont'd)
+
+-   When working at the PSNUxIM level, `tameDP` even applies the agency and mech names which are not available in the TST
+
+## Different than GHSD's package
+
+::: columns
+::: {.column width="40%"}
+GHSD's [Shiny App](https://apps.datim.org/datapack/), built off [`datapackr`](https://github.com/pepfar-datim/datapackr), creates a validation file and "Flatpack"
+:::
+
+::: {.column width="60%"}
+![](shiny.png)
+:::
+:::
+
+## Being aware of potential drawbacks
+  - You need to have R installed with `tameDP` and the dependent packages
+  - No connection to PAW
+  - Only so much we can test without having completed TST files
+  - Results may not 100% match the "Flatpack"
+  
+## Reporting an issue
+
+If you run into an error, you can either submit a [new issue](https://github.com/USAID-OHA-SI/tameDP/issues/new/choose) on GitHub (if you have a GitHub account) or you can email us at [si.coreanalytics@usaid.gov](si.coreanalytics@usaid.gov)
+
+## Appendix
+
+## A. Installing R and RStudio {#sec-installr}
+
+::: columns
+::: {.column width="40%"}
+![](https://usaid-oha-si.github.io/reference/book-si-manual/images/r_setup-software-center_r.png)
+:::
+
+::: {.column width="60%"}
+To install both R and RStudio Desktop on your GFE, go to Software Center on your computer (Start \> Microsoft Endpoint manager \> Software Center) Once there, you can select the Application called “R for Windows” and click “Install”. After that completes, you can then select “RStudio Desktop” and then “Install”. If you run into any issues, first try restarting your machine and if that fails, you can contact M/CIO Help Desk.
+:::
+:::
+
+## B. Installing R Packages {#sec-installpack}
+
+Within the R Console, you will need to install `tameDP` along with a few other USAID/OHA custom packages it relies on.
+
+```{r}
+#| eval: false
+#| echo: true
+
+ install.packages(c('gagglr', 'glamr', 'gophr', 'tameDP'), 
+                  repos = c('https://usaid-oha-si.r-universe.dev',
+                            'https://cloud.r-project.org'))
+
+```
+
+## C. Vignettes
+
+More in depth help/walk throughs can be found on `tameDP`'s [Vignette pages](https://usaid-oha-si.github.io/tameDP/articles)
