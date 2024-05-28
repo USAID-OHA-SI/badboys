@@ -4,7 +4,7 @@
 # REF ID:   162fcdc4 
 # LICENSE:  MIT
 # DATE:     2023-06-21
-# UPDATED: 
+# UPDATED:  2024-05-23
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -24,7 +24,7 @@
   baseurl <- "https://final.datim.org/"
   
   #target FY
-  fy <- 2024
+  fy <- 2025
    
   #generate a temp folder for saving temp outputs
   temp_folder()
@@ -123,18 +123,27 @@
   #country table for UIDs and names
   df_cntry_info <- get_outable() %>% 
     arrange(country) %>% 
-    select(starts_with("country"))
+    select(starts_with("country")) %>% 
+    filter(country %in% pepfar_country_list$country)
+  
+  #start log
+  sink("Documents/api.txt", append=TRUE, split=TRUE)  # for screen and log
   
   #run API to extract DATIM tables and store locally
   df_cntry_info %>% 
     pwalk(~extract_targets(..1, ..2, ..3, ..4, "Data"))
-    
+  
+  #end log
+  sink()
 
 # IMPORT DATA -------------------------------------------------------------
+
 
   #read in all local files
   df_targets <- list.files("Data", "targets", full.names = TRUE) %>% 
     map_dfr(read_csv)
+  
+
       
 # MUNGE -------------------------------------------------------------------
 
