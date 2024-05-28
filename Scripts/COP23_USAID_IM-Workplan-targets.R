@@ -8,19 +8,24 @@
 
 # DEPENDENCIES ------------------------------------------------------------
   
+  #cran
   library(tidyverse)
-  library(gagglr)
   library(glue)
-  library(grabr)
   library(tictoc)
-  library(vroom)
   library(googledrive)
+  library(vroom, warn.conflicts = FALSE)
+  library(janitor, warn.conflicts = FALSE)
+  #oha-si
+  library(gagglr) ##install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
+  library(grabr)  ##install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
   
+  #load DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
   load_secrets()
 
+  #API base url
   baseurl <- "https://final.datim.org/"
   
   #target FY
@@ -34,10 +39,10 @@
   #grab UIDS for COP **indicators**
   df_ind_uids <- glue("{baseurl}api/indicators?paging=false") %>% 
     datim_execute_query(datim_user(), datim_pwd(), flatten = TRUE) %>% 
-    purrr::pluck("indicators") %>% 
-    tibble::as_tibble() %>% 
-    janitor::clean_names() %>% 
-    dplyr::rename(indicators = display_name) %>% 
+    pluck("indicators") %>% 
+    as_tibble() %>% 
+    clean_names() %>% 
+    rename(indicators = display_name) %>% 
     filter(str_detect(indicators, glue("COP{fy-1-2000}")))
   
   #uid list for non-HTS indicators
@@ -79,7 +84,6 @@
              "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
              "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
              "dimension=SH885jaRe0o&", #Funding Mechanism
-             # "dimension=BOyWrF33hiR&", #Implementing Partner
              "displayProperty=SHORTNAME&skipMeta=false")
     
     #add data elements for non HTS indicators to url
@@ -91,7 +95,6 @@
     
     #extract non-HTS targets
     df_nonhts <- datim_process_query(url_nonhts)
-    # toc()
     
     #add data elements for HTS indicators to url
     url_hts <- paste0(url_core, "&",
