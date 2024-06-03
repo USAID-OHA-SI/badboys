@@ -4,40 +4,77 @@
 # REF ID:   162fcdc4 
 # LICENSE:  MIT
 # DATE:     2023-06-21
-# UPDATED: 
+# UPDATED:  2024-06-03
+
+
+# INSTALL PACKAGES --------------------------------------------------------
+
+install.packages('tidyverse')
+install.packages('glue')
+install.packages('tictoc')
+install.packages('googledrive')
+install.packages('vroom')
+install.packages('janitor')
+install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+
 
 # DEPENDENCIES ------------------------------------------------------------
   
+  #cran
   library(tidyverse)
-  library(gagglr)
   library(glue)
-  library(grabr)
   library(tictoc)
-  library(vroom)
   library(googledrive)
+  library(vroom, warn.conflicts = FALSE)
+  library(janitor, warn.conflicts = FALSE)
+  #oha-si
+  library(glamr) ##install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
+  library(grabr)  ##install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
   
-  load_secrets()
+  #set DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
+  set_datim("your username")
 
-  baseurl <- "https://final.datim.org/"
+  #setup folder structure
+  folder_setup()  
+
+  #countries to pull
+  cntry_sel <- c("Angola", "Burma", "Cambodia", "India", "Indonesia", 
+                 "Kazakhstan", "Kyrgyzstan", "Laos", "Nepal", 
+                 "Papua New Guinea", "Philippines", "Tajikistan", "Thailand", 
+                 "Botswana", "Burundi", "Cameroon", "Cote d'Ivoire", 
+                 "Democratic Republic of the Congo", "Dominican Republic", 
+                 "Eswatini", "Ethiopia", "Haiti", "Kenya", "Lesotho", "Malawi", 
+                 "Mozambique", "Namibia", "Nigeria", "Rwanda", "South Africa", 
+                 "South Sudan", "Tanzania", "Uganda", "Ukraine", "Vietnam", 
+                 "Benin", "Burkina Faso", "Ghana", "Liberia", "Mali", "Senegal",
+                 "Sierra Leone", "Togo", "Brazil", "Colombia", "El Salvador", 
+                 "Guatemala", "Honduras", "Jamaica", "Nicaragua", "Panama", 
+                 "Peru", "Trinidad and Tobago", "Zambia", "Zimbabwe")
+
   
   #target FY
-  fy <- 2024
+  fy <- 2025
    
+  #API base url
+  baseurl <- "https://www.datim.org/" #"https://final.datim.org/"
+  
   #generate a temp folder for saving temp outputs
-  temp_folder()
+  # temp_folder()
   
 # IDENTIFY COP INDICATORS -------------------------------------------------
   
   #grab UIDS for COP **indicators**
   df_ind_uids <- glue("{baseurl}api/indicators?paging=false") %>% 
     datim_execute_query(datim_user(), datim_pwd(), flatten = TRUE) %>% 
-    purrr::pluck("indicators") %>% 
-    tibble::as_tibble() %>% 
-    janitor::clean_names() %>% 
-    dplyr::rename(indicators = display_name) %>% 
+    pluck("indicators") %>% 
+    as_tibble() %>% 
+    clean_names() %>% 
+    rename(indicators = display_name) %>% 
     filter(str_detect(indicators, glue("COP{fy-1-2000}")))
   
   #uid list for non-HTS indicators
@@ -79,7 +116,6 @@
              "dimension=ou:LEVEL-", org_lvl, ";", cntry_uid, "&", #level and ou
              "filter=bw8KHXzxd9i:NLV6dy7BE2O&", #Funding Agency - USAID
              "dimension=SH885jaRe0o&", #Funding Mechanism
-             # "dimension=BOyWrF33hiR&", #Implementing Partner
              "displayProperty=SHORTNAME&skipMeta=false")
     
     #add data elements for non HTS indicators to url
@@ -91,7 +127,6 @@
     
     #extract non-HTS targets
     df_nonhts <- datim_process_query(url_nonhts)
-    # toc()
     
     #add data elements for HTS indicators to url
     url_hts <- paste0(url_core, "&",
@@ -123,18 +158,27 @@
   #country table for UIDs and names
   df_cntry_info <- get_outable() %>% 
     arrange(country) %>% 
-    select(starts_with("country"))
+    select(starts_with("country")) %>% 
+    filter(country %in% cntry_sel)
+  
+  #start log
+  # sink("Documents/api.txt", append=TRUE, split=TRUE)  # for screen and log
   
   #run API to extract DATIM tables and store locally
   df_cntry_info %>% 
     pwalk(~extract_targets(..1, ..2, ..3, ..4, "Data"))
-    
+  
+  #end log
+  # sink()
 
 # IMPORT DATA -------------------------------------------------------------
 
+
   #read in all local files
-  df_targets <- list.files("Data", "targets", full.names = TRUE) %>% 
+  df_targets <- list.files("Data", glue("COP{fy-1-2000}-targets"), full.names = TRUE) %>% 
     map_dfr(read_csv)
+  
+
       
 # MUNGE -------------------------------------------------------------------
 
@@ -224,37 +268,37 @@
    mechs %>%
      pwalk(~print_targets(df_targets, 
                           ..1, ..2,
-                          folderpath_tmp))
-
+                          "Dataout")) #folderpath_tmp
+   
 # UPLOAD FILES ------------------------------------------------------------
 
-   #import Gdrive id mapping table & align to target table names
-   #created in COP23_USAID_IM_workplan_gdrive.R
-   df_xwalk <- read_csv("Dataout/COP_workplan_upload_crosswalk.csv") %>% 
-     mutate(ou_name = ou_name %>% 
-              str_remove_all(" ") %>% 
-              str_remove("'") %>% 
-              str_remove("al$"))
- 
-   #identify exported target files and assoicate with GDrive folder  
-   local_files <- list.files(folderpath_tmp, full.names = TRUE) %>% 
-     tibble(filepath = .) %>% 
-     mutate(basename = basename(filepath),
-            ou_name = basename %>% 
-              str_extract("(?<=_).*(?=_)") %>% 
-              str_remove("-.*")) %>% 
-     left_join(df_xwalk) %>%
-     select(filepath, id, basename)
- 
-   #push to target tables to Gdrive
-   tic()
-     local_files %>% 
-       pwalk(~ drive_upload(..1,
-                            path = as_id(..2),
-                            name = basename(.x),
-                            type = "spreadsheet",
-                            overwrite = TRUE))
-   toc()
+   # #import Gdrive id mapping table & align to target table names
+   # #created in COP23_USAID_IM_workplan_gdrive.R
+   # df_xwalk <- read_csv("Dataout/COP_workplan_upload_crosswalk.csv") %>% 
+   #   mutate(ou_name = ou_name %>% 
+   #            str_remove_all(" ") %>% 
+   #            str_remove("'") %>% 
+   #            str_remove("al$"))
+   # 
+   # #identify exported target files and assoicate with GDrive folder  
+   # local_files <- list.files(folderpath_tmp, full.names = TRUE) %>% 
+   #   tibble(filepath = .) %>% 
+   #   mutate(basename = basename(filepath),
+   #          ou_name = basename %>% 
+   #            str_extract("(?<=_).*(?=_)") %>% 
+   #            str_remove("-.*")) %>% 
+   #   left_join(df_xwalk) %>%
+   #   select(filepath, id, basename)
+   # 
+   # #push to target tables to Gdrive
+   # tic()
+   #   local_files %>% 
+   #     pwalk(~ drive_upload(..1,
+   #                          path = as_id(..2),
+   #                          name = basename(.x),
+   #                          type = "spreadsheet",
+   #                          overwrite = TRUE))
+   # toc()
    
 
 # CHECKS ------------------------------------------------------------------
