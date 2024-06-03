@@ -4,7 +4,21 @@
 # REF ID:   162fcdc4 
 # LICENSE:  MIT
 # DATE:     2023-06-21
-# UPDATED:  2024-05-28
+# UPDATED:  2024-06-03
+
+
+# INSTALL PACKAGES --------------------------------------------------------
+
+install.packages('tidyverse')
+install.packages('glue')
+install.packages('tictoc')
+install.packages('googledrive')
+install.packages('vroom')
+install.packages('janitor')
+install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -16,23 +30,41 @@
   library(vroom, warn.conflicts = FALSE)
   library(janitor, warn.conflicts = FALSE)
   #oha-si
-  library(gagglr) ##install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
+  library(glamr) ##install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
   library(grabr)  ##install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
   
-  #load DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
-  load_secrets()
+  #set DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
+  set_datim("your username")
 
-  #API base url
-  baseurl <- "https://final.datim.org/"
+  #setup folder structure
+  folder_setup()  
+
+  #countries to pull
+  cntry_sel <- c("Angola", "Burma", "Cambodia", "India", "Indonesia", 
+                 "Kazakhstan", "Kyrgyzstan", "Laos", "Nepal", 
+                 "Papua New Guinea", "Philippines", "Tajikistan", "Thailand", 
+                 "Botswana", "Burundi", "Cameroon", "Cote d'Ivoire", 
+                 "Democratic Republic of the Congo", "Dominican Republic", 
+                 "Eswatini", "Ethiopia", "Haiti", "Kenya", "Lesotho", "Malawi", 
+                 "Mozambique", "Namibia", "Nigeria", "Rwanda", "South Africa", 
+                 "South Sudan", "Tanzania", "Uganda", "Ukraine", "Vietnam", 
+                 "Benin", "Burkina Faso", "Ghana", "Liberia", "Mali", "Senegal",
+                 "Sierra Leone", "Togo", "Brazil", "Colombia", "El Salvador", 
+                 "Guatemala", "Honduras", "Jamaica", "Nicaragua", "Panama", 
+                 "Peru", "Trinidad and Tobago", "Zambia", "Zimbabwe")
+
   
   #target FY
   fy <- 2025
    
+  #API base url
+  baseurl <- "https://www.datim.org/" #"https://final.datim.org/"
+  
   #generate a temp folder for saving temp outputs
-  temp_folder()
+  # temp_folder()
   
 # IDENTIFY COP INDICATORS -------------------------------------------------
   
@@ -127,23 +159,23 @@
   df_cntry_info <- get_outable() %>% 
     arrange(country) %>% 
     select(starts_with("country")) %>% 
-    filter(country %in% pepfar_country_list$country)
+    filter(country %in% cntry_sel)
   
   #start log
-  sink("Documents/api.txt", append=TRUE, split=TRUE)  # for screen and log
+  # sink("Documents/api.txt", append=TRUE, split=TRUE)  # for screen and log
   
   #run API to extract DATIM tables and store locally
   df_cntry_info %>% 
     pwalk(~extract_targets(..1, ..2, ..3, ..4, "Data"))
   
   #end log
-  sink()
+  # sink()
 
 # IMPORT DATA -------------------------------------------------------------
 
 
   #read in all local files
-  df_targets <- list.files("Data", "targets", full.names = TRUE) %>% 
+  df_targets <- list.files("Data", glue("COP{fy-1-2000}-targets"), full.names = TRUE) %>% 
     map_dfr(read_csv)
   
 
@@ -236,37 +268,37 @@
    mechs %>%
      pwalk(~print_targets(df_targets, 
                           ..1, ..2,
-                          folderpath_tmp))
-
+                          "Dataout")) #folderpath_tmp
+   
 # UPLOAD FILES ------------------------------------------------------------
 
-   #import Gdrive id mapping table & align to target table names
-   #created in COP23_USAID_IM_workplan_gdrive.R
-   df_xwalk <- read_csv("Dataout/COP_workplan_upload_crosswalk.csv") %>% 
-     mutate(ou_name = ou_name %>% 
-              str_remove_all(" ") %>% 
-              str_remove("'") %>% 
-              str_remove("al$"))
- 
-   #identify exported target files and assoicate with GDrive folder  
-   local_files <- list.files(folderpath_tmp, full.names = TRUE) %>% 
-     tibble(filepath = .) %>% 
-     mutate(basename = basename(filepath),
-            ou_name = basename %>% 
-              str_extract("(?<=_).*(?=_)") %>% 
-              str_remove("-.*")) %>% 
-     left_join(df_xwalk) %>%
-     select(filepath, id, basename)
- 
-   #push to target tables to Gdrive
-   tic()
-     local_files %>% 
-       pwalk(~ drive_upload(..1,
-                            path = as_id(..2),
-                            name = basename(.x),
-                            type = "spreadsheet",
-                            overwrite = TRUE))
-   toc()
+   # #import Gdrive id mapping table & align to target table names
+   # #created in COP23_USAID_IM_workplan_gdrive.R
+   # df_xwalk <- read_csv("Dataout/COP_workplan_upload_crosswalk.csv") %>% 
+   #   mutate(ou_name = ou_name %>% 
+   #            str_remove_all(" ") %>% 
+   #            str_remove("'") %>% 
+   #            str_remove("al$"))
+   # 
+   # #identify exported target files and assoicate with GDrive folder  
+   # local_files <- list.files(folderpath_tmp, full.names = TRUE) %>% 
+   #   tibble(filepath = .) %>% 
+   #   mutate(basename = basename(filepath),
+   #          ou_name = basename %>% 
+   #            str_extract("(?<=_).*(?=_)") %>% 
+   #            str_remove("-.*")) %>% 
+   #   left_join(df_xwalk) %>%
+   #   select(filepath, id, basename)
+   # 
+   # #push to target tables to Gdrive
+   # tic()
+   #   local_files %>% 
+   #     pwalk(~ drive_upload(..1,
+   #                          path = as_id(..2),
+   #                          name = basename(.x),
+   #                          type = "spreadsheet",
+   #                          overwrite = TRUE))
+   # toc()
    
 
 # CHECKS ------------------------------------------------------------------
