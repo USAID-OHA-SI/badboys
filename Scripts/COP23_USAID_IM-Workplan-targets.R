@@ -34,13 +34,10 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
   library(grabr)  ##install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', 'https://cloud.r-project.org'))
   
 
-# GLOBAL VARIABLES --------------------------------------------------------
-  
+# USER ADJUSTED GLOBAL VARIABLES ------------------------------------------
+
   #set DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
   set_datim("your username")
-
-  #setup folder structure
-  folder_setup()  
 
   #countries to pull
   cntry_sel <- c("Angola", "Burma", "Cambodia", "India", "Indonesia", 
@@ -55,8 +52,12 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
                  "Sierra Leone", "Togo", "Brazil", "Colombia", "El Salvador", 
                  "Guatemala", "Honduras", "Jamaica", "Nicaragua", "Panama", 
                  "Peru", "Trinidad and Tobago", "Zambia", "Zimbabwe")
-
   
+# GLOBAL VARIABLES --------------------------------------------------------
+  
+  #setup folder structure
+  folder_setup()  
+
   #target FY
   fy <- 2025
    
