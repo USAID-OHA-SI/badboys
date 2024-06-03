@@ -9,15 +9,15 @@
 
 # INSTALL PACKAGES --------------------------------------------------------
 
-install.packages('tidyverse')
-install.packages('glue')
-install.packages('tictoc')
-install.packages('googledrive')
-install.packages('vroom')
-install.packages('janitor')
-install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
-install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
-install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+  install.packages('tidyverse')
+  install.packages('glue')
+  install.packages('tictoc')
+  install.packages('googledrive')
+  install.packages('vroom')
+  install.packages('janitor')
+  install.packages('gagglr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+  install.packages('glamr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
+  install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOption("repos")))
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -39,6 +39,9 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
   #set DATIM credentials - https://usaid-oha-si.github.io/glamr/articles/credential-management.html
   set_datim("your username")
 
+  #Output folder
+  folderpath_out <- "Dataout"
+  
   #countries to pull
   cntry_sel <- c("Angola", "Burma", "Cambodia", "India", "Indonesia", 
                  "Kazakhstan", "Kyrgyzstan", "Laos", "Nepal", 
@@ -55,9 +58,6 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
   
 # GLOBAL VARIABLES --------------------------------------------------------
   
-  #setup folder structure
-  folder_setup()  
-
   #target FY
   fy <- 2025
    
@@ -167,7 +167,7 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
   
   #run API to extract DATIM tables and store locally
   df_cntry_info %>% 
-    pwalk(~extract_targets(..1, ..2, ..3, ..4, "Data"))
+    pwalk(~extract_targets(..1, ..2, ..3, ..4, folderpath_out))
   
   #end log
   # sink()
@@ -176,7 +176,7 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
 
 
   #read in all local files
-  df_targets <- list.files("Data", glue("COP{fy-1-2000}-targets"), full.names = TRUE) %>% 
+  df_targets <- list.files(folderpath_out, glue("COP{fy-1-2000}-targets"), full.names = TRUE) %>% 
     map_dfr(read_csv)
   
 
@@ -269,7 +269,7 @@ install.packages('grabr', repos = c('https://usaid-oha-si.r-universe.dev', getOp
    mechs %>%
      pwalk(~print_targets(df_targets, 
                           ..1, ..2,
-                          "Dataout")) #folderpath_tmp
+                          folderpath_out)) #folderpath_tmp
    
 # UPLOAD FILES ------------------------------------------------------------
 
