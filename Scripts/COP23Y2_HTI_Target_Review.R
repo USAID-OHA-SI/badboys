@@ -141,6 +141,7 @@
           plot.subtitle = element_markdown())
 
   si_preview()
+  
   # si_save("Images/COP23Y2_HTI_target-delta.png")
   si_save("Graphics/COP23Y2_HTI_target-delta.svg")
   
@@ -185,5 +186,6 @@
           plot.title = element_markdown())
   
   si_preview()
+
   si_save("Images/COP23Y2_HTI_target-share.png")
   
