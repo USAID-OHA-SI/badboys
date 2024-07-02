@@ -123,32 +123,51 @@
            drive_resource_ou = drive_resource) 
 
   list_folders <- function(folder_id){
-    
-    #OU cop folder id
-    cop_folder_id <- drive_ls(folder_id, pattern = cop_yr) %>% 
+
+  #OU cop folder id
+  cop_folder_id <- drive_ls(folder_id, pattern = cop_yr) %>%
+    pull(id)
+
+  #check if folders
+  # add check here if folders is null, create folder
+  if(length(cop_folder_id) == 0) {
+    drive_mkdir("COP23y2/FY25",
+                path = as_id(folder_id))
+
+    folders <- drive_ls(folder_id) %>%
+      filter(name %in% cop_yr)
+
+    cop_folder_id <- drive_ls(folder_id, pattern = cop_yr) %>%
       pull(id)
-    
-    #look within sub folders to get IM target table folders; add parent id back to df
-    sub_folders <- drive_ls(cop_folder_id) %>% 
-      filter(name %in% c("IM Target Tables")) 
-    
-    # add check here if folders is null, create folder
-    if(nrow(sub_folders) == 0) {
-      drive_mkdir("IM Target Tables",
-                  path = as_id(cop_folder_id))
-      
-      sub_folders <- drive_ls(cop_folder_id) %>% 
-        filter(name %in% c("IM Target Tables"))
-    } else {
-      print("IM Target Tables exists")
-    }
-    
-    sub_folders <- sub_folders %>% 
-      filter(name %in% c("IM Target Tables")) %>% 
-      mutate(parent_folder_id = folder_id)
-    
-    return(sub_folders)
+
+  } else {
+    print("COP23y2/FY25 exists")
   }
+
+
+  #look within sub folders to get IM target table folders; add parent id back to df
+  sub_folders <- drive_ls(cop_folder_id) %>%
+    filter(name %in% c("IM Target Tables"))
+
+
+
+  # add check here if folders is null, create folder
+  if(nrow(sub_folders) == 0) {
+    drive_mkdir("IM Target Tables",
+                path = as_id(cop_folder_id))
+
+    sub_folders <- drive_ls(cop_folder_id) %>%
+      filter(name %in% c("IM Target Tables"))
+  } else {
+    print("IM Target Tables exists")
+  }
+
+  sub_folders <- sub_folders %>%
+    filter(name %in% c("IM Target Tables")) %>%
+    mutate(parent_folder_id = folder_id)
+
+  return(sub_folders)
+}
  
   
   #apply function
